@@ -32,14 +32,14 @@
 
 typedef struct {
 
-    double mass; // could just make this a float
-    double velocity;
+    double mass; // kg
+    double velocity; // m/s
     double drag_coefficient;
-    double altitude;
-    double area;
-    double acceleration;
-    double deployment_altitude;
-    int deployed;
+    double altitude; // m
+    double area; // m^2
+    double acceleration; // m/s^2
+    char name[8];  // string: 8 char name
+    int deployed; // bool: 1 for true, 0 for no
 
 } Lander;
 
