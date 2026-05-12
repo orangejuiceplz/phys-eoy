@@ -27,12 +27,20 @@
 #ifndef AP_PHYS_1_EOY_CONSTANTS_H
 #define AP_PHYS_1_EOY_CONSTANTS_H
 
+#define g 9.8
+#define air_density 1.225
+
 typedef struct {
 
-    double mass;
-    float velocity;
+    double mass; // could just make this a float
+    double velocity;
+    double drag_coefficient;
+    double altitude;
+    double area;
+    double acceleration;
+    double deployment_altitude;
+    int deployed;
 
-
-} box;
+} Lander;
 
 #endif
