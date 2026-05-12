@@ -3,9 +3,11 @@ project(AP_PHYS_1_EOY C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(AP_PHYS_1_EOY main.c
+add_executable(AP_PHYS_1_EOY src/main.c
 
         include/constants.h
+        include/flight_math.h
+        src/flight_math.c
 
 
 )
