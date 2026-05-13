@@ -27,6 +27,8 @@
 #ifndef AP_PHYS_1_EOY_CONSTANTS_H
 #define AP_PHYS_1_EOY_CONSTANTS_H
 
+#include <stdbool.h>
+
 #define g 9.8
 #define air_density 1.225
 
@@ -35,11 +37,14 @@ typedef struct {
     double mass; // kg
     double velocity; // m/s
     double drag_coefficient;
-    double altitude; // m
+    double altitude; // m, parachute height to be deployed at 
     double area; // m^2
     double acceleration; // m/s^2
     char name[8];  // string: 8 char name
-    int deployed; // bool: 1 for true, 0 for no
+    bool deployed; 
+    double thrust; // current thrust force in Newtons
+    double suicide_altitude; // altitude to trigger the motor
+    bool motor_active
 
 } Lander;
 
