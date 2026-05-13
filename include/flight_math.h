@@ -31,6 +31,6 @@
 
 double calculate_drag(double velocity, double drag_coefficient, double area);
 void update(Lander *l, double dt);
-double calculate_breaking_distance(Lander *l, double max_motor_thrust);
+double calculate_braking_distance(Lander *l, double max_motor_thrust);
 
 #endif
