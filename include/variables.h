@@ -24,8 +24,8 @@
  */
 
 
-#ifndef AP_PHYS_1_EOY_CONSTANTS_H
-#define AP_PHYS_1_EOY_CONSTANTS_H
+#ifndef AP_PHYS_1_EOY_VARIABLES_H
+#define AP_PHYS_1_EOY_VARIABLES_H
 
 #include <stdbool.h>
 
@@ -37,7 +37,8 @@ typedef struct {
     double mass; // kg
     double velocity; // m/s
     double drag_coefficient;
-    double altitude; // m, parachute height to be deployed at 
+    double parachute_altitude; // m, parachute height to be deployed at 
+    double altitude
     double area; // m^2
     double acceleration; // m/s^2
     char name[8];  // string: 8 char name
