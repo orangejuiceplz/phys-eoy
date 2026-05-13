@@ -27,10 +27,10 @@
 #ifndef AP_PHYS_1_EOY_FLIGHT_MATH_H
 #define AP_PHYS_1_EOY_FLIGHT_MATH_H
 
-#include "constants.h"
+#include "variables.h"
 
 double calculate_drag(double velocity, double drag_coefficient, double area);
 void update(Lander *l, double dt);
-double calculate_breaking_distance(Lander *l);
+double calculate_breaking_distance(Lander *l, double max_motor_thrust);
 
 #endif
