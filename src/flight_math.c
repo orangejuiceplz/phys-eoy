@@ -47,10 +47,12 @@ void update(Lander *l, double dt) {
     l->altitude += l->velocity * dt;
 }
 
-double calculate_braking_distance(Lander *l) {
-    return (pow(l->velocity, 2)) / (2 * l->acceleration);
-}
+double calculate_braking_distance(Lander *l, double max_thrust) {
+    double downward_net_force = max_motor_thrust - (l->mass * g);
 
+    double max_braking_acceleration = downward_net_force / l->mass;
+    return (pow(l->velocity, 2)) / (2 * max_braking_acceleration);
+}
 
 
 
