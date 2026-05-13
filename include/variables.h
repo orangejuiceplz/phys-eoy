@@ -38,14 +38,14 @@ typedef struct {
     double velocity; // m/s
     double drag_coefficient;
     double parachute_altitude; // m, parachute height to be deployed at 
-    double altitude
+    double altitude; // m, current height of parachute
     double area; // m^2
     double acceleration; // m/s^2
-    char name[8];  // string: 8 char name
+    char name[8];
     bool deployed; 
-    double thrust; // current thrust force in Newtons
-    double suicide_altitude; // altitude to trigger the motor
-    bool motor_active
+    double thrust; // N, current thrust force
+    double suicide_altitude; // m, altitude to trigger the motor
+    bool motor_active;
 
 } Lander;
 
