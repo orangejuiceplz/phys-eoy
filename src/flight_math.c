@@ -47,5 +47,10 @@ void update(Lander *l, double dt) {
     l->altitude += l->velocity * dt;
 }
 
+double calculate_braking_distance(Lander *l) {
+    return (pow(l->velocity, 2)) / (2 * l->acceleration);
+}
+
+
 
 
