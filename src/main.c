@@ -5,13 +5,16 @@ int main(void) {
         .mass = 0,
         .velocity = 0,
         .drag_coefficient = 0,
+        .parachute_altitude = 0,
         .altitude = 0,
         .area = 0,
         .acceleration = 0,
-        .deployment_altitude = 0,
         .name= "sky-lander",
-        .deployed = 0
+        .deployed = false,
+        .thrust = 0,
+        .suicide_altitude = 0,
+        .motor_active = false,
     };
-    while ()
+
     return 0;
 }
