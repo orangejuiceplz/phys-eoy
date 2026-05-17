@@ -28,7 +28,7 @@
 
 double calculate_drag(double velocity, double drag_coefficient, double area) {
     // Force_drag = 1/2 * rho * v^2 * dC * A
-    return 0.5 * air_density * pow(velocity, 2) * drag_coefficient * area;
+    return 0.5 * air_density * (l->velocity * l->velocity) * drag_coefficient * area;
 }
 
 // stupid integrator
@@ -51,7 +51,7 @@ double calculate_braking_distance(Lander *l, double max_thrust) {
     const double downward_net_force = max_thrust - (l->mass * g);
 
     const double max_braking_acceleration = downward_net_force / l->mass;
-    return (pow(l->velocity, 2)) / (2 * max_braking_acceleration);
+    return (l->velocity * l->velocity) / (2 * max_braking_acceleration);
 }
 
 
