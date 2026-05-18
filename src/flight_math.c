@@ -28,7 +28,7 @@
 
 double calculate_drag(double velocity, double drag_coefficient, double area) {
     // Force_drag = 1/2 * rho * v^2 * dC * A
-    return 0.5 * air_density * (l->velocity * l->velocity) * drag_coefficient * area;
+    return 0.5 * air_density * (velocity * velocity) * drag_coefficient * area;
 }
 
 // stupid integrator
