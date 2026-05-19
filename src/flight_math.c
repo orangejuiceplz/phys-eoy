@@ -40,7 +40,7 @@ void update(Lander *l, double dt) {
         force_drag = -force_drag;
     }
 
-    const double net_force = force_drag - force_gravity;
+    const double net_force = force_drag - force_gravity + l->thrust;
 
     l->acceleration = net_force / l->mass; //a = sum(F)/m
     l->velocity += l->acceleration * dt;
