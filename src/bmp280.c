@@ -30,7 +30,7 @@
 #define first_pressure_register 0xF7
 
 
-static inline void bmp280_read_calibration(i2c_inst_t* i2c, uint8_t addr, bmp280_calibration_data *calibration_struct) {
+void bmp280_read_calibration(i2c_inst_t* i2c, uint8_t addr, bmp280_calibration_data *calibration_struct) {
     uint8_t reg = 0x88;
     i2c_write_blocking(i2c, addr, &reg, 1, true);
     i2c_read_blocking(i2c, addr, (uint8_t*)calibration_struct, sizeof(bmp280_calibration_data), false);

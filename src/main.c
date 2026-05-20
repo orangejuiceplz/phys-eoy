@@ -25,7 +25,7 @@ int main(void) {
 
     bmp280_calibration_data calibration_struct;
     bmp280_wake_up(I2C_PORT, BMP280_ADDR);
-    bmp280_read_calib(I2C_PORT, BMP280_ADDR, &calibration_struct);
+    bmp280_read_calibration(I2C_PORT, BMP280_ADDR, &calibration_struct);
 
     while (true) {
         int32_t raw_temp, raw_pressure;
