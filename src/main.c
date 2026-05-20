@@ -23,35 +23,17 @@ int main(void) {
     gpio_pull_up(SDA_PIN);
     gpio_pull_up(SCL_PIN);
 
-    uint8_t reg = REG_ID;
-    uint8_t chip_id[1];
-    int i = 0;
-    while (true) {
-        // i++;
-        // chip_id[0] = 0;
-        //
-        // i2c_write_blocking(I2C_PORT, BMP280_ADDR, &reg, 1, true);
-        // i2c_read_blocking(I2C_PORT, BMP280_ADDR, chip_id, 1, false);
-        //
-        // printf("\n Diagnostics: \n");
-        // if (chip_id[0] == 0x58) {
-        //     printf("[SYSTEM] BMP280 Altimeter Found! (ID: 0x%X)\n", chip_id[0]);
-        //     printf("[SYSTEM] I2C Data Link: STABLE\n");
-        //     printf("[SYSTEM] Iteration: ");
-        //     printf("%d", i);
-        // } else {
-        //     printf("[ERROR] Altimeter failed to respond. (Read ID: 0x%X)\n", chip_id[0]);
-        //     printf("[ERROR] check wiring");
-        // }
-        //
-        // sleep_ms(1);
+    bmp280_calibration_data calibration_struct;
+    bmp280_wake_up(I2C_PORT, BMP280_ADDR);
+    bmp280_read_calib(I2C_PORT, BMP280_ADDR, &calibration_struct);
 
+    while (true) {
         int32_t raw_temp, raw_pressure;
 
         bmp280_get_raw_measurements(I2C_PORT, BMP280_ADDR, &raw_temp, &raw_pressure);
 
-        double true_temp = bmp280_compensate_T(raw_temp, &calibration_struct);
-        double true_pressure = bmp280_compensate_P(raw_pressure, &calibration_struct);
+        double true_temp = bmp280_compensate_temp(raw_temp, &calibration_struct);
+        double true_pressure = bmp280_compensate_pressure(raw_pressure, &calibration_struct);
 
         double current_altitude = calculate_altitude(true_pressure);
 
