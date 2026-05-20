@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/i2c.h"
 #include "../include/flight_math.h"
+#include "../include/bmp280.h"
 
 // breadboard
 #define I2C_PORT i2c0
@@ -27,24 +27,35 @@ int main(void) {
     uint8_t chip_id[1];
     int i = 0;
     while (true) {
-        i++;
-        chip_id[0] = 0;
+        // i++;
+        // chip_id[0] = 0;
+        //
+        // i2c_write_blocking(I2C_PORT, BMP280_ADDR, &reg, 1, true);
+        // i2c_read_blocking(I2C_PORT, BMP280_ADDR, chip_id, 1, false);
+        //
+        // printf("\n Diagnostics: \n");
+        // if (chip_id[0] == 0x58) {
+        //     printf("[SYSTEM] BMP280 Altimeter Found! (ID: 0x%X)\n", chip_id[0]);
+        //     printf("[SYSTEM] I2C Data Link: STABLE\n");
+        //     printf("[SYSTEM] Iteration: ");
+        //     printf("%d", i);
+        // } else {
+        //     printf("[ERROR] Altimeter failed to respond. (Read ID: 0x%X)\n", chip_id[0]);
+        //     printf("[ERROR] check wiring");
+        // }
+        //
+        // sleep_ms(1);
 
-        i2c_write_blocking(I2C_PORT, BMP280_ADDR, &reg, 1, true);
-        i2c_read_blocking(I2C_PORT, BMP280_ADDR, chip_id, 1, false);
+        int32_t raw_temp, raw_pressure;
 
-        printf("\n Diagnostics: \n");
-        if (chip_id[0] == 0x58) {
-            printf("[SYSTEM] BMP280 Altimeter Found! (ID: 0x%X)\n", chip_id[0]);
-            printf("[SYSTEM] I2C Data Link: STABLE\n");
-            printf("[SYSTEM] Iteration: ");
-            printf("%d", i);
-        } else {
-            printf("[ERROR] Altimeter failed to respond. (Read ID: 0x%X)\n", chip_id[0]);
-            printf("[ERROR] check wiring");
-        }
+        bmp280_get_raw_measurements(I2C_PORT, BMP280_ADDR, &raw_temp, &raw_pressure);
 
-        sleep_ms(1);
+        double true_temp = bmp280_compensate_T(raw_temp, &calibration_struct);
+        double true_pressure = bmp280_compensate_P(raw_pressure, &calibration_struct);
+
+        double current_altitude = calculate_altitude(true_pressure);
+
+        printf("Altitude: %.2f meters\n", current_altitude);
     }
 
     return 0;

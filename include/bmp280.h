@@ -99,12 +99,23 @@ double bmp280_compensate_pressure(int32_t adc_P, bmp280_calibration_data *calibr
 
 /**
  *
- * calculate altitude
+ * calculate altitude via nonsensical stuff
  *
  * @param pressure current pressure
  * @return current altitude
  */
 double calculate_altitude(double pressure);
+
+/**
+ *
+ * get raw measurements from the BMP
+ *
+ * @param i2c i2c instance
+ * @param addr i2c address
+ * @param adc_T analog to digital temperature
+ * @param adc_P analog to digital pressure
+ */
+void bmp280_get_raw_measurements(i2c_inst_t *i2c, uint8_t addr, int32_t *adc_T, int32_t *adc_P);
 
 
 #endif
