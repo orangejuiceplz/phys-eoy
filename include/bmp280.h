@@ -64,7 +64,7 @@ typedef struct {
  * @param addr I2C address of the BMP280 (0x77)
  * @param calibration_struct pointer to the calibration struct
  */
-static inline void bmp280_read_calib(i2c_inst_t *i2c, uint8_t addr, bmp280_calibration_data *calibration_struct);
+static inline void bmp280_read_calibration(i2c_inst_t *i2c, uint8_t addr, bmp280_calibration_data *calibration_struct);
 
 /**
  *
