@@ -11,6 +11,8 @@ pico_sdk_init()
 add_executable(AP_PHYS_1_EOY
         src/main.c
         src/flight_math.c
+        include/bmp280.h
+        src/bmp280.c
 )
 
 target_link_libraries(AP_PHYS_1_EOY
