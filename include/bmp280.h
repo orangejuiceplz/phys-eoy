@@ -32,9 +32,14 @@
 #include <math.h>
 
 #define REG_CTRL_MEAS 0xF4
-#define CMD_WAKE_UP   0x27
+#define REG_CONFIG    0xF5
 
-int32_t t_fine; // temp
+// osrs_t=101 (×16), osrs_p=101 (×16), mode=11 (normal)
+#define CMD_WAKE_UP   0xB7
+// t_sb=000 (0.5ms), filter=100 (coeff 16), spi3w_en=0
+#define CMD_CONFIG    0x10
+
+extern int32_t t_fine; // temp
 
 // this friggen thing SUCKS bosch
 // apparently this is how they store 24 bytes of calibration
@@ -74,6 +79,15 @@ void bmp280_read_calibration(i2c_inst_t *i2c, uint8_t addr, bmp280_calibration_d
  * @param addr I2c address of the BMP280 (0x77)
  */
 void bmp280_wake_up(i2c_inst_t *i2c, uint8_t addr);
+
+/**
+ * Configure the BMP280 IIR filter and standby time.
+ * Must be called while sensor is in sleep mode (before wake_up).
+ *
+ * @param i2c i2c instance
+ * @param addr I2C address of the BMP280
+ */
+void bmp280_configure(i2c_inst_t *i2c, uint8_t addr);
 
 /**
  *

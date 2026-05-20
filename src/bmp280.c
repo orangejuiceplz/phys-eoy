@@ -29,11 +29,19 @@
 #define barometric_scale_height 44330
 #define first_pressure_register 0xF7
 
+int32_t t_fine;
 
 void bmp280_read_calibration(i2c_inst_t* i2c, uint8_t addr, bmp280_calibration_data *calibration_struct) {
     uint8_t reg = 0x88;
     i2c_write_blocking(i2c, addr, &reg, 1, true);
     i2c_read_blocking(i2c, addr, (uint8_t*)calibration_struct, sizeof(bmp280_calibration_data), false);
+}
+
+void bmp280_configure(i2c_inst_t* i2c, uint8_t addr) {
+    uint8_t payload[2];
+    payload[0] = REG_CONFIG;
+    payload[1] = CMD_CONFIG;
+    i2c_write_blocking(i2c, addr, payload, 2, false);
 }
 
 void bmp280_wake_up(i2c_inst_t* i2c,uint8_t addr) {
@@ -60,7 +68,7 @@ double bmp280_compensate_temp(int32_t adc_T, bmp280_calibration_data *calibratio
 
 // this is even more bs
 // source: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
-double bmp280_compensate_P(int32_t adc_P, bmp280_calibration_data *calibration_struct) {
+double bmp280_compensate_pressure(int32_t adc_P, bmp280_calibration_data *calibration_struct) {
     double var1 = ((double) t_fine / 2.0) - 64000.0;
     double var2 = var1 * var1 * ((double) calibration_struct->dig_P6) / 32768.0;
     var2 = var2 + var1 * ((double) calibration_struct->dig_P5) * 2.0;
