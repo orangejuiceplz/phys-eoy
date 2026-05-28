@@ -11,13 +11,17 @@ pico_sdk_init()
 add_executable(AP_PHYS_1_EOY
         src/main.c
         src/flight_math.c
-        include/bmp280.h
         src/bmp280.c
+        src/state_machine.c
+        src/mpu6050.c
+        src/vl53l4cx.c
+        src/servo.c
 )
 
 target_link_libraries(AP_PHYS_1_EOY
         pico_stdlib
         hardware_i2c
+        hardware_pwm
 )
 
 pico_enable_stdio_usb(AP_PHYS_1_EOY 1)

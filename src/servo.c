@@ -2,7 +2,6 @@
  * MIT License
  *
  * Copyright (c) 2026 orangejuiceplz
- * CREATED on 5/12/26 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,37 +22,31 @@
  * SOFTWARE.
  */
 
+#include "hardware/pwm.h"
+#include "../include/servo.h"
 
-#ifndef AP_PHYS_1_EOY_VARIABLES_H
-#define AP_PHYS_1_EOY_VARIABLES_H
+// 125MHz / 125 = 1MHz tick → 1 count = 1μs → 20000 counts = 20ms = 50Hz
+#define SERVO_WRAP 19999
+#define SERVO_CLKDIV 125.0f
 
-#include <stdbool.h>
+#define SERVO_MIN_US 500  // 0°
+#define SERVO_MAX_US 2500 // 180°
 
-#define g 9.8
-#define air_density 1.225
+void servo_init(uint pin) {
+    gpio_set_function(pin, GPIO_FUNC_PWM);
+    uint slice = pwm_gpio_to_slice_num(pin);
+    pwm_set_clkdiv(slice, SERVO_CLKDIV);
+    pwm_set_wrap(slice, SERVO_WRAP);
+    pwm_set_enabled(slice, true);
+}
 
-#define FREEFALL_VELOCITY_THRESHOLD -0.5  // m/s — tune via testing
-#define CHUTE_DEPLOY_AGL             4.0  // meters above ground level
-#define FREEFALL_G_THRESHOLD          0.4  // g — below this = freefall
-#define VELOCITY_DEAD_ZONE            0.05 // m/s — below this = stationary
+void servo_set_angle(uint pin, float angle) {
+    if (angle < 0.0f) angle = 0.0f;
+    if (angle > 180.0f) angle = 180.0f;
 
-typedef struct {
+    uint slice = pwm_gpio_to_slice_num(pin);
+    uint channel = pwm_gpio_to_channel(pin);
 
-    double mass;
-    double velocity;
-    double drag_coefficient;
-    double parachute_altitude;
-    double altitude;
-    double area;
-    double acceleration;
-    char name[8];
-    bool deployed;
-    double thrust;
-    double suicide_altitude;
-    bool motor_active;
-    double ground_altitude;
-    bool imu_freefall;
-
-} Lander;
-
-#endif
+    float pulse_us = SERVO_MIN_US + (angle / 180.0f) * (SERVO_MAX_US - SERVO_MIN_US);
+    pwm_set_chan_level(slice, channel, (uint16_t)pulse_us);
+}

@@ -2,7 +2,6 @@
  * MIT License
  *
  * Copyright (c) 2026 orangejuiceplz
- * CREATED on 5/12/26 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,37 +22,36 @@
  * SOFTWARE.
  */
 
+#ifndef AP_PHYS_1_EOY_MPU6050_H
+#define AP_PHYS_1_EOY_MPU6050_H
 
-#ifndef AP_PHYS_1_EOY_VARIABLES_H
-#define AP_PHYS_1_EOY_VARIABLES_H
-
+#include <stdint.h>
 #include <stdbool.h>
+#include "hardware/i2c.h"
 
-#define g 9.8
-#define air_density 1.225
+#define MPU6050_ADDR 0x68
 
-#define FREEFALL_VELOCITY_THRESHOLD -0.5  // m/s — tune via testing
-#define CHUTE_DEPLOY_AGL             4.0  // meters above ground level
-#define FREEFALL_G_THRESHOLD          0.4  // g — below this = freefall
-#define VELOCITY_DEAD_ZONE            0.05 // m/s — below this = stationary
+#define MPU6050_REG_WHO_AM_I     0x75
+#define MPU6050_REG_PWR_MGMT_1   0x6B
+#define MPU6050_REG_ACCEL_CONFIG 0x1C
+#define MPU6050_REG_GYRO_CONFIG  0x1B
+#define MPU6050_REG_ACCEL_XOUT_H 0x3B
+#define MPU6050_REG_GYRO_XOUT_H  0x43
+
+#define MPU6050_WHO_AM_I_VAL 0x68
+
+#define MPU6050_ACCEL_SENSITIVITY 16384.0 // LSB/g at ±2g
+#define MPU6050_GYRO_SENSITIVITY  131.0   // LSB/(°/s) at ±250°/s
 
 typedef struct {
+    double accel_x, accel_y, accel_z;
+    double gyro_x, gyro_y, gyro_z;
+} mpu6050_data;
 
-    double mass;
-    double velocity;
-    double drag_coefficient;
-    double parachute_altitude;
-    double altitude;
-    double area;
-    double acceleration;
-    char name[8];
-    bool deployed;
-    double thrust;
-    double suicide_altitude;
-    bool motor_active;
-    double ground_altitude;
-    bool imu_freefall;
+bool mpu6050_init(i2c_inst_t *i2c, uint8_t addr);
+bool mpu6050_read(i2c_inst_t *i2c, uint8_t addr, mpu6050_data *data);
 
-} Lander;
+// |a| = sqrt(ax² + ay² + az²) < threshold → freefall
+bool mpu6050_detect_freefall(mpu6050_data *data, double threshold_g);
 
 #endif

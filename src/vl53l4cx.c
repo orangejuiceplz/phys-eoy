@@ -2,7 +2,6 @@
  * MIT License
  *
  * Copyright (c) 2026 orangejuiceplz
- * CREATED on 5/12/26 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,37 +22,18 @@
  * SOFTWARE.
  */
 
+#include "../include/vl53l4cx.h"
 
-#ifndef AP_PHYS_1_EOY_VARIABLES_H
-#define AP_PHYS_1_EOY_VARIABLES_H
+bool vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr) {
+    // ST's ULD is hundreds of files — not porting that yet
+    (void)i2c;
+    (void)addr;
+    return false;
+}
 
-#include <stdbool.h>
-
-#define g 9.8
-#define air_density 1.225
-
-#define FREEFALL_VELOCITY_THRESHOLD -0.5  // m/s — tune via testing
-#define CHUTE_DEPLOY_AGL             4.0  // meters above ground level
-#define FREEFALL_G_THRESHOLD          0.4  // g — below this = freefall
-#define VELOCITY_DEAD_ZONE            0.05 // m/s — below this = stationary
-
-typedef struct {
-
-    double mass;
-    double velocity;
-    double drag_coefficient;
-    double parachute_altitude;
-    double altitude;
-    double area;
-    double acceleration;
-    char name[8];
-    bool deployed;
-    double thrust;
-    double suicide_altitude;
-    bool motor_active;
-    double ground_altitude;
-    bool imu_freefall;
-
-} Lander;
-
-#endif
+bool vl53l4cx_read_distance_mm(i2c_inst_t *i2c, uint8_t addr, int32_t *distance_mm) {
+    (void)i2c;
+    (void)addr;
+    *distance_mm = -1;
+    return false;
+}
