@@ -23,7 +23,7 @@
  * SOFTWARE.
  */
 
-#include "../include/bmp280.h"
+#include "../../include/3.3v/bmp280.h"
 
 #define atmospheric_pressure 101325.0
 #define barometric_scale_height 44330
@@ -67,7 +67,7 @@ double bmp280_compensate_temp(int32_t adc_T, bmp280_calibration_data *calibratio
 }
 
 // this is even more bs
-// source: https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
+// source: https://www.bosch-sensoartec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
 double bmp280_compensate_pressure(int32_t adc_P, bmp280_calibration_data *calibration_struct) {
     double var1 = ((double) t_fine / 2.0) - 64000.0;
     double var2 = var1 * var1 * ((double) calibration_struct->dig_P6) / 32768.0;

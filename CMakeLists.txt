@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
 set(PICO_SDK_PATH "/usr/share/pico-sdk")
+set(PICO_BOARD pico2)
+set(PICO_PLATFORM rp2350-arm-s)
+
 include(pico_sdk_import.cmake)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 
@@ -11,11 +14,11 @@ pico_sdk_init()
 add_executable(AP_PHYS_1_EOY
         src/main.c
         src/flight_math.c
-        src/bmp280.c
         src/state_machine.c
-        src/mpu6050.c
-        src/vl53l4cx.c
-        src/servo.c
+        src/3.3v/bmp280.c
+        src/3.3v/mpu6050.c
+        src/3.3v/vl53l4cx.c
+        src/5v/servo.c
 )
 
 target_link_libraries(AP_PHYS_1_EOY

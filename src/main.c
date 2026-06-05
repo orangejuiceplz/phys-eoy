@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "../include/flight_math.h"
-#include "../include/bmp280.h"
+#include "../include/3.3v/bmp280.h"
 #include "../include/state_machine.h"
-#include "../include/servo.h"
-#include "../include/mpu6050.h"
+#include "../include/5v/servo.h"
+#include "../include/3.3v/mpu6050.h"
 
 #define I2C_PORT i2c0
 #define SDA_PIN 0
@@ -89,7 +89,6 @@ int main(void) {
     double filtered_altitude = ground_alt;
     const double dt = LOOP_DELAY_MS / 1000.0;
 
-    printf("\n=== Neptune II Flight Computer ===\n");
     printf("Ground altitude: %.2f m ASL\n", ground_alt);
     printf("IMU (MPU-6050): %s\n", imu_available ? "OK" : "NOT FOUND");
     printf("Chute deploy: %.1f m AGL\n", CHUTE_DEPLOY_AGL);

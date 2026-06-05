@@ -37,6 +37,8 @@
 #define FREEFALL_G_THRESHOLD          0.4  // g — below this = freefall
 #define VELOCITY_DEAD_ZONE            0.05 // m/s — below this = stationary
 
+#define ESC_PIN 19
+
 typedef struct {
 
     double mass;

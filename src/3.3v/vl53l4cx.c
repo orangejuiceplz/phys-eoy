@@ -22,31 +22,18 @@
  * SOFTWARE.
  */
 
-#include "hardware/pwm.h"
-#include "../include/servo.h"
+#include "../../include/3.3v/vl53l4cx.h"
 
-// 125MHz / 125 = 1MHz tick → 1 count = 1μs → 20000 counts = 20ms = 50Hz
-#define SERVO_WRAP 19999
-#define SERVO_CLKDIV 125.0f
-
-#define SERVO_MIN_US 500  // 0°
-#define SERVO_MAX_US 2500 // 180°
-
-void servo_init(uint pin) {
-    gpio_set_function(pin, GPIO_FUNC_PWM);
-    uint slice = pwm_gpio_to_slice_num(pin);
-    pwm_set_clkdiv(slice, SERVO_CLKDIV);
-    pwm_set_wrap(slice, SERVO_WRAP);
-    pwm_set_enabled(slice, true);
+bool vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr) {
+    // ST's ULD is hundreds of files — not porting that yet
+    (void)i2c;
+    (void)addr;
+    return false;
 }
 
-void servo_set_angle(uint pin, float angle) {
-    if (angle < 0.0f) angle = 0.0f;
-    if (angle > 180.0f) angle = 180.0f;
-
-    uint slice = pwm_gpio_to_slice_num(pin);
-    uint channel = pwm_gpio_to_channel(pin);
-
-    float pulse_us = SERVO_MIN_US + (angle / 180.0f) * (SERVO_MAX_US - SERVO_MIN_US);
-    pwm_set_chan_level(slice, channel, (uint16_t)pulse_us);
+bool vl53l4cx_read_distance_mm(i2c_inst_t *i2c, uint8_t addr, int32_t *distance_mm) {
+    (void)i2c;
+    (void)addr;
+    *distance_mm = -1;
+    return false;
 }

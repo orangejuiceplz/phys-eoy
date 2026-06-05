@@ -23,7 +23,7 @@
  */
 
 #include <math.h>
-#include "../include/mpu6050.h"
+#include "../../include/3.3v/mpu6050.h"
 
 bool mpu6050_init(i2c_inst_t *i2c, uint8_t addr) {
     uint8_t reg = MPU6050_REG_WHO_AM_I;
