@@ -25,15 +25,20 @@
 #ifndef AP_PHYS_1_EOY_VL53L4CX_H
 #define AP_PHYS_1_EOY_VL53L4CX_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include "hardware/i2c.h"
 
+// VL53L4CX default 7-bit address
 #define VL53L4CX_ADDR 0x29
-#define VL53L4CX_MAX_RANGE_MM 6000
 
-// needs ST's ULD adapted for Pico I2C — not a simple register sensor
-bool vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr);
-bool vl53l4cx_read_distance_mm(i2c_inst_t *i2c, uint8_t addr, int32_t *distance_mm);
+// 8-bit address used by ST ULD (left-shifted)
+#define VL53L4CX_ADDR_8BIT (VL53L4CX_ADDR << 1)
+
+bool     vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr);
+bool     vl53l4cx_start_ranging(void);
+bool     vl53l4cx_stop_ranging(void);
+bool     vl53l4cx_is_ready(void);
+uint16_t vl53l4cx_read_distance_mm(void);
 
 #endif

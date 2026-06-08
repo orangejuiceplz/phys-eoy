@@ -23,17 +23,57 @@
  */
 
 #include "../../include/3.3v/vl53l4cx.h"
+#include "../../lib/vl53l4cd/vl53l4cd_api.h"
+#include <stdio.h>
+
+static uint16_t _dev_addr_8bit = 0;
 
 bool vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr) {
-    // ST's ULD is hundreds of files — not porting that yet
-    (void)i2c;
-    (void)addr;
-    return false;
+    _dev_addr_8bit = (uint16_t)(addr << 1);
+    vl53l4cd_set_i2c(i2c);
+
+    uint16_t sensor_id = 0;
+    if (VL53L4CD_GetSensorId(_dev_addr_8bit, &sensor_id) != VL53L4CD_ERROR_NONE) {
+        printf("[ToF] FAIL: could not read sensor ID\n");
+        return false;
+    }
+    printf("[ToF] Sensor ID: 0x%04X\n", sensor_id);
+
+    if (VL53L4CD_SensorInit(_dev_addr_8bit) != VL53L4CD_ERROR_NONE) {
+        printf("[ToF] FAIL: SensorInit failed\n");
+        return false;
+    }
+
+    // 30ms timing budget, continuous mode
+    if (VL53L4CD_SetRangeTiming(_dev_addr_8bit, 30, 0) != VL53L4CD_ERROR_NONE) {
+        printf("[ToF] FAIL: SetRangeTiming failed\n");
+        return false;
+    }
+
+    printf("[ToF] VL53L4CX initialized (VL53L4CD ULD mode, ~1.3m range)\n");
+    return true;
 }
 
-bool vl53l4cx_read_distance_mm(i2c_inst_t *i2c, uint8_t addr, int32_t *distance_mm) {
-    (void)i2c;
-    (void)addr;
-    *distance_mm = -1;
-    return false;
+bool vl53l4cx_start_ranging(void) {
+    return VL53L4CD_StartRanging(_dev_addr_8bit) == VL53L4CD_ERROR_NONE;
+}
+
+bool vl53l4cx_stop_ranging(void) {
+    return VL53L4CD_StopRanging(_dev_addr_8bit) == VL53L4CD_ERROR_NONE;
+}
+
+bool vl53l4cx_is_ready(void) {
+    uint8_t ready = 0;
+    VL53L4CD_CheckForDataReady(_dev_addr_8bit, &ready);
+    return ready == 1;
+}
+
+uint16_t vl53l4cx_read_distance_mm(void) {
+    VL53L4CD_Result_t result = {0};
+    VL53L4CD_GetResult(_dev_addr_8bit, &result);
+    VL53L4CD_ClearInterrupt(_dev_addr_8bit);
+
+    if (result.range_status != 0) return 0; // invalid measurement
+
+    return result.distance_mm;
 }
