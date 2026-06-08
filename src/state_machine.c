@@ -55,14 +55,19 @@ FlightState evaluate_state(FlightState current, Lander *l) {
         }
 
         case STATE_CHUTE:
-            if (l->tof_distance_mm > 0 && l->tof_distance_mm <= BURN_ALTITUDE_MM) {
-                return STATE_BURN;
+            if (l->tof_distance_mm > 0) {
+                double tof_m = l->tof_distance_mm / 1000.0;
+                double brake_dist = calculate_braking_distance(l, l->max_thrust);
+                if (tof_m <= brake_dist) {
+                    return STATE_BURN;
+                }
             }
             break;
 
         case STATE_BURN:
             if (l->motor_active &&
-                l->velocity > -LANDED_VELOCITY && l->velocity < LANDED_VELOCITY) {
+                l->velocity > -LANDED_VELOCITY && l->velocity < LANDED_VELOCITY &&
+                l->tof_distance_mm > 0 && l->tof_distance_mm < GROUND_THRESHOLD_MM) {
                 return STATE_LANDED;
             }
             break;

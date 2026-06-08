@@ -20,6 +20,8 @@ add_executable(AP_PHYS_1_EOY
         src/3.3v/vl53l4cx.c
         src/5v/servo.c
         src/5v/esc.c
+        src/fusion.c
+        src/flash_state.c
         lib/vl53l4cd/vl53l4cd_api.c
 )
 
@@ -29,6 +31,8 @@ target_link_libraries(AP_PHYS_1_EOY
         pico_stdlib
         hardware_i2c
         hardware_pwm
+        hardware_flash
+        hardware_sync
 )
 
 pico_enable_stdio_usb(AP_PHYS_1_EOY 1)

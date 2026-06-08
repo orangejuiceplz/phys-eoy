@@ -7,6 +7,8 @@
 #include "../include/5v/esc.h"
 #include "../include/3.3v/mpu6050.h"
 #include "../include/3.3v/vl53l4cx.h"
+#include "../include/fusion.h"
+#include "../include/flash_state.h"
 
 #define I2C_PORT i2c0
 #define SDA_PIN 0
@@ -16,11 +18,11 @@
 #define LED_PIN 25
 
 #define ALPHA 0.15
-#define LOOP_DELAY_MS 100
+#define LOOP_DELAY_MS 20
 #define BASELINE_SAMPLES 50
 
-// suicide burn throttle — tune via static thrust testing
-#define BURN_THROTTLE 0.6f
+// suicide burn throttle — full power for TWR > 1.0 
+#define BURN_THROTTLE 1.0f
 
 static void led_blink(int count, int ms) {
     for (int i = 0; i < count; i++) {
@@ -110,7 +112,7 @@ int main(void) {
         .imu_freefall = false,
         .tof_distance_mm = 0,
         .chute_cd = 1.0,          // round parachute
-        .chute_area = 0.292,      // 24" StratoChute → π × 0.305²
+        .chute_area = 0.292,      // 24" StratoChute → pi × 0.305 ^2
         .max_thrust = 7.0         // ~700g EDF thrust in Newtons
     };
 
@@ -118,6 +120,17 @@ int main(void) {
     double prev_altitude = ground_alt;
     double filtered_altitude = ground_alt;
     const double dt = LOOP_DELAY_MS / 1000.0;
+
+    FusionState fusion;
+    fusion_init(&fusion);
+
+    FlashState saved;
+    if (flash_state_read(&saved) && saved.chute_deployed) {
+        printf("[RECOVERY] Brownout detected — chute was deployed, resuming CHUTE\n");
+        state = STATE_CHUTE;
+        lander.deployed = true;
+        servo_set_angle(SERVO_PIN, 90.0f);
+    }
 
     double initial_deploy = calculate_deploy_altitude(&lander);
     printf("Ground altitude: %.2f m ASL\n", ground_alt);
@@ -144,7 +157,8 @@ int main(void) {
                     lander.imu_freefall = false;
                     lander.motor_active = false;
                     esc_kill(ESC_PIN);
-                    printf("[CMD] Reset -> IDLE\n");
+                    flash_state_clear();
+                    printf("[CMD] Reset -> IDLE (flash cleared)\n");
                     break;
                 case 's':
                     printf("[STATUS] State:%s Alt:%.2f Ground:%.2f AGL:%.2f Vel:%.2f FF:%s ToF:%dmm\n",
@@ -219,7 +233,14 @@ int main(void) {
         filtered_altitude = (ALPHA * raw_alt) + ((1.0 - ALPHA) * filtered_altitude);
 
         lander.altitude = filtered_altitude;
-        lander.velocity = (filtered_altitude - prev_altitude) / dt;
+
+        double baro_vel = (filtered_altitude - prev_altitude) / dt;
+        double imu_vert_accel = 0.0;
+        if (imu_available) {
+            imu_vert_accel = (imu.accel_z - 1.0) * 9.8;  // subtract 1g, convert to m/s^2
+        }
+        fusion_update(&fusion, baro_vel, imu_vert_accel, dt);
+        lander.velocity = fusion.velocity;
         prev_altitude = filtered_altitude;
 
         if (lander.velocity > -VELOCITY_DEAD_ZONE && lander.velocity < VELOCITY_DEAD_ZONE) {
@@ -237,8 +258,19 @@ int main(void) {
 
         if (tof_available && (state == STATE_CHUTE || state == STATE_BURN)) {
             if (vl53l4cx_is_ready()) {
-                lander.tof_distance_mm = vl53l4cx_read_distance_mm();
+                uint16_t raw_tof = vl53l4cx_read_distance_mm();
+                if (raw_tof > 0) {
+                    lander.tof_distance_mm = raw_tof;
+                } else {
+                    double agl_m = lander.altitude - lander.ground_altitude;
+                    lander.tof_distance_mm = (agl_m > 0) ? (uint16_t)(agl_m * 1000) : 0;
+                    printf("[ToF] FAILSAFE: using baro AGL %dmm\n", lander.tof_distance_mm);
+                }
             }
+        } else if (state == STATE_CHUTE || state == STATE_BURN) {
+            double agl_m = lander.altitude - lander.ground_altitude;
+            lander.tof_distance_mm = (agl_m > 0) ? (uint16_t)(agl_m * 1000) : 0;
+            printf("[ToF] NO SENSOR: using baro AGL %dmm\n", lander.tof_distance_mm);
         } else {
             lander.tof_distance_mm = 0;
         }
@@ -249,6 +281,7 @@ int main(void) {
                    state_to_string(state), state_to_string(next));
 
             if (next == STATE_CHUTE && !lander.deployed) {
+                flash_state_write(STATE_CHUTE, 1);  
                 lander.deployed = true;
                 servo_set_angle(SERVO_PIN, 90.0f);
                 printf(">>> PARACHUTE DEPLOYED <<<\n");

@@ -41,6 +41,7 @@
 
 #define ESC_PIN 16
 #define BURN_ALTITUDE_MM 800  // ToF distance to trigger suicide burn
+#define GROUND_THRESHOLD_MM 50  // ToF distance below which = on the ground
 #define LANDED_VELOCITY  0.3  // m/s — below this + burn active = landed
 
 typedef struct {
