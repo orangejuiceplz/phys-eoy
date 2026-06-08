@@ -88,15 +88,6 @@ double bmp280_compensate_pressure(int32_t adc_P, bmp280_calibration_data *calibr
     return p;
 }
 
-// i also believe this will be variable.
-// i'm using a macro to define atmospheric_pressure
-// but that changes as you go up
-// i'll see
-
-// (1.0 / 5.255) is the barometric exponent
-double calculate_altitude(double pressure) {
-        return barometric_scale_height * (1.0 - pow((pressure / atmospheric_pressure), (1.0 / 5.255)));
-}
 
 void bmp280_get_raw_measurements(i2c_inst_t *i2c, uint8_t addr, int32_t *adc_T, int32_t *adc_P) {
     uint8_t reg = first_pressure_register;
