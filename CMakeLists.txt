@@ -19,7 +19,11 @@ add_executable(AP_PHYS_1_EOY
         src/3.3v/mpu6050.c
         src/3.3v/vl53l4cx.c
         src/5v/servo.c
+        src/5v/esc.c
+        lib/vl53l4cd/vl53l4cd_api.c
 )
+
+target_include_directories(AP_PHYS_1_EOY PRIVATE ${CMAKE_SOURCE_DIR})
 
 target_link_libraries(AP_PHYS_1_EOY
         pico_stdlib
