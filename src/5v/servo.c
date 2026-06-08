@@ -25,7 +25,7 @@
 #include "hardware/pwm.h"
 #include "../../include/5v/servo.h"
 
-// 125MHz / 125 = 1MHz tick → 1 count = 1μs → 20000 counts = 20ms = 50Hz
+// 125MHz / 125 = 1MHz tick -> 1 count = 1μs -> 20000 counts = 20ms = 50Hz
 #define SERVO_WRAP 19999
 #define SERVO_CLKDIV 125.0f
 
