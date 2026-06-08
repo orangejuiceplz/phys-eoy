@@ -23,6 +23,7 @@
  */
 
 #include "../include/state_machine.h"
+#include "../include/flight_math.h"
 
 const char* state_to_string(FlightState state) {
     switch (state) {
@@ -45,20 +46,25 @@ FlightState evaluate_state(FlightState current, Lander *l) {
             }
             break;
 
-        case STATE_FREEFALL:
-            if (agl <= CHUTE_DEPLOY_AGL) {
+        case STATE_FREEFALL: {
+            double deploy_agl = calculate_deploy_altitude(l);
+            if (agl <= deploy_agl) {
                 return STATE_CHUTE;
             }
             break;
+        }
 
         case STATE_CHUTE:
-            // Transition to BURN requires ToF lidar distance matching braking distance.
-            // Stubbed until VL53L4CX is wired and calibrated.
+            if (l->tof_distance_mm > 0 && l->tof_distance_mm <= BURN_ALTITUDE_MM) {
+                return STATE_BURN;
+            }
             break;
 
         case STATE_BURN:
-            // Transition to LANDED when velocity ≈ 0 and altitude ≈ ground.
-            // Stubbed until PDS is integrated.
+            if (l->motor_active &&
+                l->velocity > -LANDED_VELOCITY && l->velocity < LANDED_VELOCITY) {
+                return STATE_LANDED;
+            }
             break;
 
         case STATE_LANDED:
