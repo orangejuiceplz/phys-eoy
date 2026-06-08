@@ -28,23 +28,26 @@
 #define AP_PHYS_1_EOY_VARIABLES_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define g 9.8
 #define air_density 1.225
 
-#define FREEFALL_VELOCITY_THRESHOLD -0.5  // m/s — tune via testing
-#define CHUTE_DEPLOY_AGL             4.0  // meters above ground level
+#define FREEFALL_VELOCITY_THRESHOLD -0.5  // m/s
 #define FREEFALL_G_THRESHOLD          0.4  // g — below this = freefall
 #define VELOCITY_DEAD_ZONE            0.05 // m/s — below this = stationary
+#define CHUTE_OPEN_TIME               1.5  // seconds for parachute to inflate
+#define MIN_DEPLOY_AGL                3.0  // absolute minimum deploy altitude (safety floor)
 
-#define ESC_PIN 19
+#define ESC_PIN 16
+#define BURN_ALTITUDE_MM 800  // ToF distance to trigger suicide burn
+#define LANDED_VELOCITY  0.3  // m/s — below this + burn active = landed
 
 typedef struct {
 
     double mass;
     double velocity;
     double drag_coefficient;
-    double parachute_altitude;
     double altitude;
     double area;
     double acceleration;
@@ -55,6 +58,10 @@ typedef struct {
     bool motor_active;
     double ground_altitude;
     bool imu_freefall;
+    uint16_t tof_distance_mm;
+    double chute_cd;          // parachute drag coefficient (~1.0 for round)
+    double chute_area;        // parachute area in m² (24" → ~0.292)
+    double max_thrust;        // EDF max thrust in N (for braking distance calc)
 
 } Lander;
 
