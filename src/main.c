@@ -234,10 +234,18 @@ int main(void) {
 
         lander.altitude = filtered_altitude;
 
+        mpu6050_data imu;
+        bool imu_read_ok = imu_available && mpu6050_read(I2C_PORT, MPU6050_ADDR, &imu);
+        if (imu_read_ok) {
+            lander.imu_freefall = mpu6050_detect_freefall(&imu, FREEFALL_G_THRESHOLD);
+        } else {
+            lander.imu_freefall = false;
+        }
+
         double baro_vel = (filtered_altitude - prev_altitude) / dt;
         double imu_vert_accel = 0.0;
-        if (imu_available) {
-            imu_vert_accel = (imu.accel_z - 1.0) * 9.8;  // subtract 1g, convert to m/s^2
+        if (imu_read_ok) {
+            imu_vert_accel = (imu.accel_z - 1.0) * 9.8;
         }
         fusion_update(&fusion, baro_vel, imu_vert_accel, dt);
         lander.velocity = fusion.velocity;
@@ -248,13 +256,6 @@ int main(void) {
         }
 
         double agl = lander.altitude - lander.ground_altitude;
-
-        mpu6050_data imu;
-        if (imu_available && mpu6050_read(I2C_PORT, MPU6050_ADDR, &imu)) {
-            lander.imu_freefall = mpu6050_detect_freefall(&imu, FREEFALL_G_THRESHOLD);
-        } else {
-            lander.imu_freefall = false;
-        }
 
         if (tof_available && (state == STATE_CHUTE || state == STATE_BURN)) {
             if (vl53l4cx_is_ready()) {
