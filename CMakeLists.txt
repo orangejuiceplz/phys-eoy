@@ -11,6 +11,11 @@ project(AP_PHYS_1_EOY C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 
+file(GLOB VL53L4CX_SOURCES
+        lib/vl53l4cx/core/*.c
+        lib/vl53l4cx/platform/*.c
+)
+
 add_executable(AP_PHYS_1_EOY
         src/main.c
         src/flight_math.c
@@ -22,10 +27,14 @@ add_executable(AP_PHYS_1_EOY
         src/5v/esc.c
         src/fusion.c
         src/flash_state.c
-        lib/vl53l4cd/vl53l4cd_api.c
+        ${VL53L4CX_SOURCES}
 )
 
-target_include_directories(AP_PHYS_1_EOY PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(AP_PHYS_1_EOY PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/lib/vl53l4cx/core
+        ${CMAKE_SOURCE_DIR}/lib/vl53l4cx/platform
+)
 
 target_link_libraries(AP_PHYS_1_EOY
         pico_stdlib
