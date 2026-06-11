@@ -29,11 +29,7 @@
 #include <stdint.h>
 #include "hardware/i2c.h"
 
-// VL53L4CX default 7-bit address
 #define VL53L4CX_ADDR 0x29
-
-// 8-bit address used by ST ULD (left-shifted)
-#define VL53L4CX_ADDR_8BIT (VL53L4CX_ADDR << 1)
 
 bool     vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr);
 bool     vl53l4cx_start_ranging(void);

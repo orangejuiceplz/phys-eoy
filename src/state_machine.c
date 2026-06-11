@@ -40,11 +40,21 @@ FlightState evaluate_state(FlightState current, Lander *l) {
     double agl = l->altitude - l->ground_altitude;
 
     switch (current) {
-        case STATE_IDLE:
-            if (agl > 0 && (l->imu_freefall || l->velocity < FREEFALL_VELOCITY_THRESHOLD)) {
+        case STATE_IDLE: {
+            // IMU 0G only, other stuff can't trigger
+            // a launch. debounced so a single noisy 20ms read can't either.
+            static int freefall_ticks = 0;
+            if (l->imu_freefall) {
+                freefall_ticks++;
+            } else {
+                freefall_ticks = 0;
+            }
+            if (freefall_ticks >= FREEFALL_DEBOUNCE_TICKS) {
+                freefall_ticks = 0;
                 return STATE_FREEFALL;
             }
             break;
+        }
 
         case STATE_FREEFALL: {
             double deploy_agl = calculate_deploy_altitude(l);

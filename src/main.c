@@ -21,8 +21,13 @@
 #define LOOP_DELAY_MS 20
 #define BASELINE_SAMPLES 50
 
-// suicide burn throttle — full power for TWR > 1.0 
+// suicide burn throttle — full power for TWR > 1.0
 #define BURN_THROTTLE 1.0f
+
+// arming countdown: time to get clear after pressing 'a' before motor goes live
+#define ARM_COUNTDOWN_MS 10000
+// servo deflection during countdown — visible "arming in progress" warning
+#define ARM_WARN_ANGLE 15.0f
 
 static void led_blink(int count, int ms) {
     for (int i = 0; i < count; i++) {
@@ -54,15 +59,7 @@ int main(void) {
     sleep_ms(1000);
 
     servo_init(SERVO_PIN);
-
-    printf("Servo test...\n");
-    servo_set_angle(SERVO_PIN, 0.0f);
-    sleep_ms(500);
-    servo_set_angle(SERVO_PIN, 90.0f);
-    sleep_ms(500);
-    servo_set_angle(SERVO_PIN, 0.0f);
-    sleep_ms(500);
-    printf("Servo test done\n");
+    servo_set_angle(SERVO_PIN, 0.0f);   // latch closed, no test sweep
 
     bool imu_available = mpu6050_init(I2C_PORT, MPU6050_ADDR);
 
@@ -117,6 +114,10 @@ int main(void) {
     };
 
     FlightState state = STATE_IDLE;
+    // SAFE by default: the state machine runs the full flight sequence regardless,
+    // but no code path may spin the motor until armed via the 'a' key.
+    bool flight_armed = false;
+    uint32_t arm_deadline_ms = 0;  // nonzero = arming countdown in progress
     double prev_altitude = ground_alt;
     double filtered_altitude = ground_alt;
     const double dt = LOOP_DELAY_MS / 1000.0;
@@ -129,6 +130,7 @@ int main(void) {
         printf("[RECOVERY] Brownout detected — chute was deployed, resuming CHUTE\n");
         state = STATE_CHUTE;
         lander.deployed = true;
+        flight_armed = true;  // chute deployed in flight implies we were armed — keep the burn available
         servo_set_angle(SERVO_PIN, 90.0f);
     }
 
@@ -139,7 +141,8 @@ int main(void) {
     printf("Chute deploy: %.1f m AGL (dynamic, v=0 estimate)\n", initial_deploy);
     printf("Burn trigger: %d mm ToF\n", BURN_ALTITUDE_MM);
     printf("State: %s\n", state_to_string(state));
-    printf("Keys: b=baseline  r=reset  s=status  t=servo  m=motor  ?=help\n\n");
+    printf("Motor: %s\n", flight_armed ? "ARMED" : "SAFE (disarmed — press 'a' to arm before drop)");
+    printf("Keys: a=arm/disarm  b=baseline  r=reset  s=status  t=servo  m=motor  ?=help\n\n");
 
     led_blink(3, 200);
 
@@ -147,6 +150,23 @@ int main(void) {
         int ch = getchar_timeout_us(0);
         if (ch != PICO_ERROR_TIMEOUT) {
             switch (ch) {
+                case 'a':
+                    if (flight_armed) {
+                        flight_armed = false;
+                        esc_kill(ESC_PIN);
+                        lander.motor_active = false;
+                        printf("[ARM] Motor SAFE — all motor output suppressed\n");
+                    } else if (arm_deadline_ms != 0) {
+                        arm_deadline_ms = 0;
+                        if (!lander.deployed) servo_set_angle(SERVO_PIN, 0.0f);
+                        printf("[ARM] Countdown cancelled — still SAFE\n");
+                    } else {
+                        arm_deadline_ms = to_ms_since_boot(get_absolute_time()) + ARM_COUNTDOWN_MS;
+                        servo_set_angle(SERVO_PIN, ARM_WARN_ANGLE);
+                        printf("[ARM] Arming in %d s — get clear! (press 'a' again to cancel)\n",
+                               ARM_COUNTDOWN_MS / 1000);
+                    }
+                    break;
                 case 'b':
                     lander.ground_altitude = filtered_altitude;
                     printf("[CMD] Baseline reset -> %.2f m\n", lander.ground_altitude);
@@ -156,13 +176,17 @@ int main(void) {
                     lander.deployed = false;
                     lander.imu_freefall = false;
                     lander.motor_active = false;
+                    flight_armed = false;
+                    arm_deadline_ms = 0;
+                    servo_set_angle(SERVO_PIN, 0.0f);
                     esc_kill(ESC_PIN);
                     flash_state_clear();
-                    printf("[CMD] Reset -> IDLE (flash cleared)\n");
+                    printf("[CMD] Reset -> IDLE (flash cleared, motor SAFE)\n");
                     break;
                 case 's':
-                    printf("[STATUS] State:%s Alt:%.2f Ground:%.2f AGL:%.2f Vel:%.2f FF:%s ToF:%dmm\n",
-                           state_to_string(state), lander.altitude, lander.ground_altitude,
+                    printf("[STATUS] State:%s Arm:%s Alt:%.2f Ground:%.2f AGL:%.2f Vel:%.2f FF:%s ToF:%dmm\n",
+                           state_to_string(state), flight_armed ? "ARMED" : "SAFE",
+                           lander.altitude, lander.ground_altitude,
                            lander.altitude - lander.ground_altitude, lander.velocity,
                            lander.imu_freefall ? "YES" : "no",
                            lander.tof_distance_mm);
@@ -178,8 +202,12 @@ int main(void) {
                 case '4':
                     state = STATE_BURN;
                     lander.motor_active = true;
-                    esc_set_throttle(ESC_PIN, BURN_THROTTLE);
-                    printf("[CMD] -> BURN (motor on)\n");
+                    if (flight_armed) {
+                        esc_set_throttle(ESC_PIN, BURN_THROTTLE);
+                        printf("[CMD] -> BURN (motor on)\n");
+                    } else {
+                        printf("[CMD] -> BURN (SAFE — motor suppressed, press 'a' to arm)\n");
+                    }
                     break;
                 case '5':
                     state = STATE_LANDED;
@@ -197,6 +225,10 @@ int main(void) {
                     printf("[CMD] Servo test done\n");
                     break;
                 case 'm':
+                    if (!flight_armed) {
+                        printf("[CMD] Motor test blocked — SAFE. Press 'a' to arm first.\n");
+                        break;
+                    }
                     printf("[CMD] Motor test — ramping to 50%%\n");
                     for (float t = 0.1f; t <= 0.5f; t += 0.1f) {
                         esc_set_throttle(ESC_PIN, t);
@@ -207,6 +239,10 @@ int main(void) {
                     break;
                 case 'k':
                     if (!lander.motor_active) {
+                        if (!flight_armed) {
+                            printf("[CMD] Motor blocked — SAFE. Press 'a' to arm first.\n");
+                            break;
+                        }
                         lander.motor_active = true;
                         esc_set_throttle(ESC_PIN, 0.5f);
                         printf("[CMD] Motor ON (50%%) — press k or r to stop\n");
@@ -217,11 +253,19 @@ int main(void) {
                     }
                     break;
                 case '?':
-                    printf("[HELP] b=baseline r=reset s=status t=servo m=motor k=motor toggle 1-5=states\n");
+                    printf("[HELP] a=arm/disarm b=baseline r=reset s=status t=servo m=motor k=motor toggle 1-5=states\n");
                     break;
                 default:
                     break;
             }
+        }
+
+        if (arm_deadline_ms != 0 &&
+            to_ms_since_boot(get_absolute_time()) >= arm_deadline_ms) {
+            arm_deadline_ms = 0;
+            flight_armed = true;
+            if (!lander.deployed) servo_set_angle(SERVO_PIN, 0.0f);  // warning over, latch closed
+            printf("[ARM] *** MOTOR ARMED — burn and motor tests are LIVE ***\n");
         }
 
         int32_t raw_t, raw_p;
@@ -290,21 +334,28 @@ int main(void) {
 
             if (next == STATE_BURN) {
                 lander.motor_active = true;
-                esc_set_throttle(ESC_PIN, BURN_THROTTLE);
-                printf(">>> SUICIDE BURN IGNITION <<<\n");
+                if (flight_armed) {
+                    esc_set_throttle(ESC_PIN, BURN_THROTTLE);
+                    printf(">>> SUICIDE BURN IGNITION <<<\n");
+                } else {
+                    printf(">>> BURN (SAFE — motor suppressed) <<<\n");
+                }
             }
 
             if (next == STATE_LANDED) {
                 lander.motor_active = false;
+                flight_armed = false;
+                arm_deadline_ms = 0;
                 esc_kill(ESC_PIN);
-                printf(">>> LANDED — MOTOR OFF <<<\n");
+                printf(">>> LANDED — MOTOR OFF, SAFE <<<\n");
             }
 
             state = next;
         }
 
-        printf("[%s] AGL: %.2f m | Vel: %.2f m/s | FF: %s",
-               state_to_string(state), agl, lander.velocity,
+        printf("[%s%s] AGL: %.2f m | Vel: %.2f m/s | FF: %s",
+               state_to_string(state), flight_armed ? "|ARMED" : "",
+               agl, lander.velocity,
                lander.imu_freefall ? "YES" : "no");
         if (state == STATE_FREEFALL) {
             printf(" | Deploy: %.1fm", calculate_deploy_altitude(&lander));

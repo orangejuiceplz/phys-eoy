@@ -35,9 +35,10 @@
 
 #define FREEFALL_VELOCITY_THRESHOLD -0.5  // m/s
 #define FREEFALL_G_THRESHOLD          0.4  // g — below this = freefall
+#define FREEFALL_DEBOUNCE_TICKS       12   // consecutive 20ms loops of 0G before FREEFALL (~240ms ≈ 0.3m of fall)
 #define VELOCITY_DEAD_ZONE            0.05 // m/s — below this = stationary
 #define CHUTE_OPEN_TIME               1.5  // seconds for parachute to inflate
-#define MIN_DEPLOY_AGL                3.0  // absolute minimum deploy altitude (safety floor)
+#define MIN_DEPLOY_AGL                0.5  // absolute minimum deploy altitude (crash floor — dynamic calc dominates at real speeds)
 
 #define ESC_PIN 16
 #define BURN_ALTITUDE_MM 800  // ToF distance to trigger suicide burn

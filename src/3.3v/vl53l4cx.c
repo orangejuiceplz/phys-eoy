@@ -23,57 +23,72 @@
  */
 
 #include "../../include/3.3v/vl53l4cx.h"
-#include "../../lib/vl53l4cd/vl53l4cd_api.h"
+#include "../../lib/vl53l4cx/core/vl53lx_api.h"
 #include <stdio.h>
 
-static uint16_t _dev_addr_8bit = 0;
+static VL53LX_Dev_t _dev;
 
 bool vl53l4cx_init(i2c_inst_t *i2c, uint8_t addr) {
-    _dev_addr_8bit = (uint16_t)(addr << 1);
-    vl53l4cd_set_i2c(i2c);
+    _dev.i2c = i2c;
+    _dev.i2c_addr = addr;
 
-    uint16_t sensor_id = 0;
-    if (VL53L4CD_GetSensorId(_dev_addr_8bit, &sensor_id) != VL53L4CD_ERROR_NONE) {
-        printf("[ToF] FAIL: could not read sensor ID\n");
-        return false;
-    }
-    printf("[ToF] Sensor ID: 0x%04X\n", sensor_id);
-
-    if (VL53L4CD_SensorInit(_dev_addr_8bit) != VL53L4CD_ERROR_NONE) {
-        printf("[ToF] FAIL: SensorInit failed\n");
+    if (VL53LX_WaitDeviceBooted(&_dev) != VL53LX_ERROR_NONE) {
+        printf("[ToF] FAIL: device boot timeout\n");
         return false;
     }
 
-    // 30ms timing budget, continuous mode
-    if (VL53L4CD_SetRangeTiming(_dev_addr_8bit, 30, 0) != VL53L4CD_ERROR_NONE) {
-        printf("[ToF] FAIL: SetRangeTiming failed\n");
+    if (VL53LX_DataInit(&_dev) != VL53LX_ERROR_NONE) {
+        printf("[ToF] FAIL: DataInit failed\n");
         return false;
     }
 
-    printf("[ToF] VL53L4CX initialized (VL53L4CD ULD mode, ~1.3m range)\n");
+    // 6m
+    if (VL53LX_SetDistanceMode(&_dev, VL53LX_DISTANCEMODE_LONG) != VL53LX_ERROR_NONE) {
+        printf("[ToF] FAIL: SetDistanceMode failed\n");
+        return false;
+    }
+
+    // 33ms budget = one fresh range every ~2 flight loops
+    if (VL53LX_SetMeasurementTimingBudgetMicroSeconds(&_dev, 33000) != VL53LX_ERROR_NONE) {
+        printf("[ToF] FAIL: SetTimingBudget failed\n");
+        return false;
+    }
+
+    printf("[ToF] VL53L4CX initialized (full API, LONG mode, ~6m range)\n");
     return true;
 }
 
 bool vl53l4cx_start_ranging(void) {
-    return VL53L4CD_StartRanging(_dev_addr_8bit) == VL53L4CD_ERROR_NONE;
+    return VL53LX_StartMeasurement(&_dev) == VL53LX_ERROR_NONE;
 }
 
 bool vl53l4cx_stop_ranging(void) {
-    return VL53L4CD_StopRanging(_dev_addr_8bit) == VL53L4CD_ERROR_NONE;
+    return VL53LX_StopMeasurement(&_dev) == VL53LX_ERROR_NONE;
 }
 
 bool vl53l4cx_is_ready(void) {
     uint8_t ready = 0;
-    VL53L4CD_CheckForDataReady(_dev_addr_8bit, &ready);
+    VL53LX_GetMeasurementDataReady(&_dev, &ready);
     return ready == 1;
 }
 
 uint16_t vl53l4cx_read_distance_mm(void) {
-    VL53L4CD_Result_t result = {0};
-    VL53L4CD_GetResult(_dev_addr_8bit, &result);
-    VL53L4CD_ClearInterrupt(_dev_addr_8bit);
+    VL53LX_MultiRangingData_t data;
 
-    if (result.range_status != 0) return 0; // invalid measurement
+    VL53LX_Error status = VL53LX_GetMultiRangingData(&_dev, &data);
+    VL53LX_ClearInterruptAndStartMeasurement(&_dev);
 
-    return result.distance_mm;
+    if (status != VL53LX_ERROR_NONE) return 0;
+
+    // CX can report several targets but the ground is the closest valid one
+    uint16_t best = 0;
+    for (int i = 0; i < data.NumberOfObjectsFound; i++) {
+        if (data.RangeData[i].RangeStatus == VL53LX_RANGESTATUS_RANGE_VALID &&
+            data.RangeData[i].RangeMilliMeter > 0) {
+            uint16_t d = (uint16_t)data.RangeData[i].RangeMilliMeter;
+            if (best == 0 || d < best) best = d;
+        }
+    }
+
+    return best;
 }
