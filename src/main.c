@@ -120,7 +120,7 @@ int main(void) {
             g_ref_mag = mag;
         }
     }
-    printf("Gravity ref: [%.2f %.2f %.2f] |g|=%.3f\n", g_ref_x, g_ref_y, g_ref_z, g_ref_mag);
+    // printf("Gravity ref: [%.2f %.2f %.2f] |g|=%.3f\n", g_ref_x, g_ref_y, g_ref_z, g_ref_mag);
 
     Lander lander = {
         .mass = 0.5,
