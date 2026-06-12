@@ -83,7 +83,9 @@ uint16_t vl53l4cx_read_distance_mm(void) {
     // CX can report several targets but the ground is the closest valid one
     uint16_t best = 0;
     for (int i = 0; i < data.NumberOfObjectsFound; i++) {
-        if (data.RangeData[i].RangeStatus == VL53LX_RANGESTATUS_RANGE_VALID &&
+        uint8_t rs = data.RangeData[i].RangeStatus;
+        if ((rs == VL53LX_RANGESTATUS_RANGE_VALID ||
+             rs == VL53LX_RANGESTATUS_RANGE_VALID_MERGED_PULSE) &&
             data.RangeData[i].RangeMilliMeter > 0) {
             uint16_t d = (uint16_t)data.RangeData[i].RangeMilliMeter;
             if (best == 0 || d < best) best = d;

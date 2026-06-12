@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include "pico/stdlib.h"
 #include "../include/flight_math.h"
 #include "../include/3.3v/bmp280.h"
@@ -26,8 +27,9 @@
 
 // arming countdown: time to get clear after pressing 'a' before motor goes live
 #define ARM_COUNTDOWN_MS 10000
-// servo deflection during countdown — visible "arming in progress" warning
-#define ARM_WARN_ANGLE 15.0f
+// servo deflection during countdown — visible "arming in progress" warning.
+// small: the horn is the chute-box latch, big deflection would free the lid
+#define ARM_WARN_ANGLE 5.0f
 
 static void led_blink(int count, int ms) {
     for (int i = 0; i < count; i++) {
@@ -83,15 +85,42 @@ int main(void) {
     }
 
     double baseline_sum = 0.0;
+    double gsum_x = 0.0, gsum_y = 0.0, gsum_z = 0.0;
+    int g_samples = 0;
     for (int i = 0; i < BASELINE_SAMPLES; i++) {
         int32_t raw_t, raw_p;
         bmp280_get_raw_measurements(I2C_PORT, BMP280_ADDR, &raw_t, &raw_p);
         bmp280_compensate_temp(raw_t, &cal);
         double p = bmp280_compensate_pressure(raw_p, &cal);
         baseline_sum += calculate_altitude(p);
+
+        mpu6050_data gs;
+        if (imu_available && mpu6050_read(I2C_PORT, MPU6050_ADDR, &gs)) {
+            gsum_x += gs.accel_x;
+            gsum_y += gs.accel_y;
+            gsum_z += gs.accel_z;
+            g_samples++;
+        }
         sleep_ms(50);
     }
     double ground_alt = baseline_sum / BASELINE_SAMPLES;
+
+    // gravity reference vector — vertical acceleration works in any mounting
+    // orientation instead of assuming the MPU6050 Z-axis points up
+    double g_ref_x = 0.0, g_ref_y = 0.0, g_ref_z = 1.0, g_ref_mag = 1.0;
+    if (g_samples > 0) {
+        double gx = gsum_x / g_samples;
+        double gy = gsum_y / g_samples;
+        double gz = gsum_z / g_samples;
+        double mag = sqrt(gx * gx + gy * gy + gz * gz);
+        if (mag > 0.5) {  // sane reading (~1g at rest)
+            g_ref_x = gx / mag;
+            g_ref_y = gy / mag;
+            g_ref_z = gz / mag;
+            g_ref_mag = mag;
+        }
+    }
+    printf("Gravity ref: [%.2f %.2f %.2f] |g|=%.3f\n", g_ref_x, g_ref_y, g_ref_z, g_ref_mag);
 
     Lander lander = {
         .mass = 0.5,
@@ -118,6 +147,7 @@ int main(void) {
     // but no code path may spin the motor until armed via the 'a' key.
     bool flight_armed = false;
     uint32_t arm_deadline_ms = 0;  // nonzero = arming countdown in progress
+    bool verbose = true;           // 'v' toggles per-tick telemetry; state changes always print
     double prev_altitude = ground_alt;
     double filtered_altitude = ground_alt;
     const double dt = LOOP_DELAY_MS / 1000.0;
@@ -252,8 +282,12 @@ int main(void) {
                         printf("[CMD] Motor OFF\n");
                     }
                     break;
+                case 'v':
+                    verbose = !verbose;
+                    printf("[CMD] Telemetry %s — state changes always print\n", verbose ? "ON" : "OFF (quiet)");
+                    break;
                 case '?':
-                    printf("[HELP] a=arm/disarm b=baseline r=reset s=status t=servo m=motor k=motor toggle 1-5=states\n");
+                    printf("[HELP] a=arm/disarm b=baseline r=reset s=status t=servo m=motor k=motor toggle v=verbose 1-5=states\n");
                     break;
                 default:
                     break;
@@ -289,11 +323,29 @@ int main(void) {
         double baro_vel = (filtered_altitude - prev_altitude) / dt;
         double imu_vert_accel = 0.0;
         if (imu_read_ok) {
-            imu_vert_accel = (imu.accel_z - 1.0) * 9.8;
+            // project onto the boot-time gravity vector: at rest this equals
+            // |g_ref| so the result is 0 regardless of mounting orientation
+            double proj = imu.accel_x * g_ref_x + imu.accel_y * g_ref_y + imu.accel_z * g_ref_z;
+            imu_vert_accel = (proj - g_ref_mag) * 9.8;
         }
         fusion_update(&fusion, baro_vel, imu_vert_accel, dt);
+
+        // ZUPT: parked on the ground, bleed off any integrator drift
+        if (state == STATE_IDLE && !lander.imu_freefall) {
+            fusion.velocity *= 0.9;
+        }
         lander.velocity = fusion.velocity;
         prev_altitude = filtered_altitude;
+
+        // slow auto re-zero of the baro baseline while parked (τ ≈ 20 s).
+        // only within 1m of the baseline: tracks sensor drift but won't
+        // follow the lander being carried up to the drop point
+        if (state == STATE_IDLE && !lander.imu_freefall) {
+            double drift = lander.altitude - lander.ground_altitude;
+            if (fabs(drift) < 1.0) {
+                lander.ground_altitude += 0.001 * drift;
+            }
+        }
 
         if (lander.velocity > -VELOCITY_DEAD_ZONE && lander.velocity < VELOCITY_DEAD_ZONE) {
             lander.velocity = 0.0;
@@ -301,21 +353,25 @@ int main(void) {
 
         double agl = lander.altitude - lander.ground_altitude;
 
-        if (tof_available && (state == STATE_CHUTE || state == STATE_BURN)) {
+        // read ToF in every state so it's testable on the bench; the baro
+        // failsafe substitution only applies where it matters (CHUTE/BURN)
+        if (tof_available) {
             if (vl53l4cx_is_ready()) {
                 uint16_t raw_tof = vl53l4cx_read_distance_mm();
                 if (raw_tof > 0) {
                     lander.tof_distance_mm = raw_tof;
-                } else {
+                } else if (state == STATE_CHUTE || state == STATE_BURN) {
                     double agl_m = lander.altitude - lander.ground_altitude;
                     lander.tof_distance_mm = (agl_m > 0) ? (uint16_t)(agl_m * 1000) : 0;
-                    printf("[ToF] FAILSAFE: using baro AGL %dmm\n", lander.tof_distance_mm);
+                    if (verbose) printf("[ToF] FAILSAFE: using baro AGL %dmm\n", lander.tof_distance_mm);
+                } else {
+                    lander.tof_distance_mm = 0;
                 }
             }
         } else if (state == STATE_CHUTE || state == STATE_BURN) {
             double agl_m = lander.altitude - lander.ground_altitude;
             lander.tof_distance_mm = (agl_m > 0) ? (uint16_t)(agl_m * 1000) : 0;
-            printf("[ToF] NO SENSOR: using baro AGL %dmm\n", lander.tof_distance_mm);
+            if (verbose) printf("[ToF] NO SENSOR: using baro AGL %dmm\n", lander.tof_distance_mm);
         } else {
             lander.tof_distance_mm = 0;
         }
@@ -353,17 +409,19 @@ int main(void) {
             state = next;
         }
 
-        printf("[%s%s] AGL: %.2f m | Vel: %.2f m/s | FF: %s",
-               state_to_string(state), flight_armed ? "|ARMED" : "",
-               agl, lander.velocity,
-               lander.imu_freefall ? "YES" : "no");
-        if (state == STATE_FREEFALL) {
-            printf(" | Deploy: %.1fm", calculate_deploy_altitude(&lander));
+        if (verbose) {
+            printf("[%s%s] AGL: %.2f m | Vel: %.2f m/s | FF: %s",
+                   state_to_string(state), flight_armed ? "|ARMED" : "",
+                   agl, lander.velocity,
+                   lander.imu_freefall ? "YES" : "no");
+            if (state == STATE_FREEFALL) {
+                printf(" | Deploy: %.1fm", calculate_deploy_altitude(&lander));
+            }
+            if (state == STATE_CHUTE || state == STATE_BURN) {
+                printf(" | ToF: %dmm", lander.tof_distance_mm);
+            }
+            printf("\n");
         }
-        if (state == STATE_CHUTE || state == STATE_BURN) {
-            printf(" | ToF: %dmm", lander.tof_distance_mm);
-        }
-        printf("\n");
 
         gpio_put(LED_PIN, state == STATE_BURN ? 1 : 0);
 
